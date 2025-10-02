@@ -1,0 +1,105 @@
+<script>
+  // Apunta a tu Spring Boot:
+  const API_URL = "http://localhost:8080/api";
+
+  // ... el resto igual ...
+
+  // Leer estudiantes
+  async function loadStudents() {
+    try {
+      const res = await fetch(`${API_URL}/students`);
+      const data = await handleJSON(res);
+      renderStudents(data);
+    } catch (err) {
+      console.error("Error cargando:", err);
+      toast("No se pudieron cargar los estudiantes", "error");
+    }
+  }
+
+  // Crear estudiante
+  document
+    .getElementById("studentForm")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      if (!name || !email) return;
+
+      try {
+        await handleJSON(
+          await fetch(`${API_URL}/students`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email }),
+          })
+        );
+        e.target.reset();
+        toast("Estudiante creado", "success");
+        await loadStudents();
+      } catch (err) {
+        console.error("Error creando:", err);
+        toast("No se pudo crear (¿email duplicado?)", "error");
+      }
+    });
+
+  // Delegación de eventos para Editar/Borrar
+  document
+    .getElementById("students-tbody")
+    .addEventListener("click", async (e) => {
+      const btn = e.target.closest("button");
+      if (!btn) return;
+
+      const tr = e.target.closest("tr");
+      const id = tr?.dataset.id;
+      const currentName = tr?.dataset.name;
+      const currentEmail = tr?.dataset.email;
+
+      // Editar → usa PUT (tu backend no tiene PATCH)
+      if (btn.classList.contains("btn-edit")) {
+        const newName = prompt("Nuevo nombre:", currentName);
+        if (newName === null) return;
+        const newEmail = prompt("Nuevo email:", currentEmail);
+        if (newEmail === null) return;
+
+        try {
+          await handleJSON(
+            await fetch(`${API_URL}/students/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                name: newName.trim(),
+                email: newEmail.trim(),
+              }),
+            })
+          );
+          toast("Estudiante actualizado", "success");
+          await loadStudents();
+        } catch (err) {
+          console.error("Error editando:", err);
+          toast("No se pudo editar", "error");
+        }
+      }
+
+      // Borrar
+      if (btn.classList.contains("btn-delete")) {
+        const ok = confirm(`¿Seguro que quieres borrar al estudiante #${id}?`);
+        if (!ok) return;
+
+        try {
+          const res = await fetch(`${API_URL}/students/${id}`, {
+            method: "DELETE",
+          });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          toast("Estudiante borrado", "success");
+          await loadStudents();
+        } catch (err) {
+          console.error("Error borrando:", err);
+          toast("No se pudo borrar", "error");
+        }
+      }
+    });
+
+  // Recargar
+  document.getElementById("reloadBtn").addEventListener("click", loadStudents);
+  document.addEventListener("DOMContentLoaded", loadStudents);
+</script>
